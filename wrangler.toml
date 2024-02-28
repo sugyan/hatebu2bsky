@@ -1,6 +1,13 @@
-name = "worker-rust"
+name = "hatebu2bsky"
 main = "build/worker/shim.mjs"
 compatibility_date = "2023-06-28"
+
+kv_namespaces = [
+    { binding = "kv", id = "d19944eeb98440fe90acbec48d286159", preview_id = "232ebb5c11e44681a83eb85262051cfd" }
+]
+
+[triggers]
+crons = ["*/5 * * * *"]
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"

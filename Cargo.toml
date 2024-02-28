@@ -1,7 +1,8 @@
 [package]
-name = "worker-rust"
+name = "hatebu2bsky"
 version = "0.1.0"
 edition = "2021"
+description = "Hatena bookmark to bluesky"
 
 # https://github.com/rustwasm/wasm-pack/issues/1247
 [package.metadata.wasm-pack.profile.release]
@@ -11,7 +12,13 @@ wasm-opt = false
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = "0.0.17"
+atrium-api = { git = "https://github.com/sugyan/atrium.git", branch = "feature/wasm-support" }
+atrium-xrpc-client = { git = "https://github.com/sugyan/atrium.git", branch = "feature/wasm-support", default-features = false }
+worker = "0.0.18"
+getrandom = { version = "0.2", features = ["js"] }
+reqwest = { version = "0.11.24", default-features = false }
+rss = { version = "2.0.7", default-features = false }
+webpage = { version = "2.0.0", default-features = false }
 
 [profile.release]
 lto = true
