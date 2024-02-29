@@ -12,12 +12,14 @@ wasm-opt = false
 crate-type = ["cdylib"]
 
 [dependencies]
-atrium-api = "0.18.0"
-atrium-xrpc-client = "0.4.0"
 worker = "0.0.18"
-getrandom = { version = "0.2", features = ["js"] }
+async-trait = "0.1.77"
+atrium-api = "0.18.0"
+http = "0.2.9"
+js-sys = "=0.3.63"
 reqwest = { version = "0.11.24", default-features = false }
 rss = { version = "2.0.7", default-features = false }
+wasm-bindgen = "=0.2.86"
 webpage = { version = "2.0.0", default-features = false }
 
 [profile.release]

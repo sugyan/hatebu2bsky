@@ -1,4 +1,5 @@
 mod bsky;
+mod client;
 mod hatebu;
 
 use worker::{console_error, console_log, event};
@@ -8,22 +9,16 @@ const KV_NAMESPACE: &str = "kv";
 
 #[event(scheduled)]
 async fn main(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
-    run(env).await.expect("failed to run");
+    match run(env).await {
+        Ok(len) => console_log!("done {len} entries"),
+        Err(err) => console_error!("error: {err:?}"),
+    }
 }
 
-async fn run(env: Env) -> Result<(), Box<dyn std::error::Error>> {
-    let hatena_id = env
-        .var("HATENA_ID")
-        .expect("HATENA_ID is not set")
-        .to_string();
-    let identifier = env
-        .var("BSKY_IDENTIFIER")
-        .expect("BSKY_IDENTIFIER is not set")
-        .to_string();
-    let password = env
-        .var("BSKY_PASSWORD")
-        .expect("BSKY_PASSWORD is not set")
-        .to_string();
+async fn run(env: Env) -> Result<usize, Box<dyn std::error::Error>> {
+    let hatena_id = env.var("HATENA_ID").map(|v| v.to_string())?;
+    let identifier = env.var("BSKY_IDENTIFIER").map(|v| v.to_string())?;
+    let password = env.var("BSKY_PASSWORD").map(|v| v.to_string())?;
 
     let kv = env.kv(KV_NAMESPACE).expect("failed to get kv");
     // collect new entries from hatena bookmark
@@ -37,14 +32,13 @@ async fn run(env: Env) -> Result<(), Box<dyn std::error::Error>> {
         entries.push(entry.clone());
     }
     if entries.is_empty() {
-        console_log!("no new entries");
-        return Ok(());
+        return Ok(0);
     }
     // post new entries to bsky
     let agent = bsky::BskyAgent::new(&identifier, &password).await?;
-    for entry in entries {
+    for entry in &entries {
         console_log!("entry: {:?}", entry);
-        match post2bsky(&agent, &entry).await {
+        match post2bsky(&agent, entry).await {
             Ok(output) => {
                 console_log!("done: {:?}", output);
                 kv.put(&entry.url, output)
@@ -55,7 +49,7 @@ async fn run(env: Env) -> Result<(), Box<dyn std::error::Error>> {
             Err(err) => console_error!("error: {:?}", err),
         }
     }
-    Ok(())
+    Ok(entries.len())
 }
 
 async fn post2bsky(

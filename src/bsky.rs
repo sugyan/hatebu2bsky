@@ -1,3 +1,4 @@
+use crate::client::FetchClient;
 use crate::hatebu::Entry;
 use atrium_api::agent::{store::MemorySessionStore, AtpAgent};
 use atrium_api::app::bsky::embed::external;
@@ -5,11 +6,10 @@ use atrium_api::app::bsky::feed::post::{Record, RecordEmbedEnum};
 use atrium_api::app::bsky::richtext::facet;
 use atrium_api::com::atproto::repo::create_record::{Input, Output};
 use atrium_api::types::string::{Datetime, Did};
-use atrium_xrpc_client::reqwest::ReqwestClient;
 use webpage::HTML;
 
 pub(crate) struct BskyAgent {
-    agent: AtpAgent<MemorySessionStore, ReqwestClient>,
+    agent: AtpAgent<MemorySessionStore, FetchClient>,
     did: Did,
 }
 
@@ -18,10 +18,7 @@ impl BskyAgent {
         identifier: impl AsRef<str>,
         password: impl AsRef<str>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let agent = AtpAgent::new(
-            ReqwestClient::new("https://bsky.social"),
-            MemorySessionStore::default(),
-        );
+        let agent = AtpAgent::new(FetchClient, MemorySessionStore::default());
         let session = agent.login(identifier, password).await?;
         let did = session.did;
         Ok(Self { agent, did })
@@ -59,7 +56,6 @@ impl BskyAgent {
             })
             .await?)
     }
-
     async fn embed(
         &self,
         entry: &Entry,
