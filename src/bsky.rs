@@ -2,6 +2,7 @@ use crate::hatebu::Entry;
 use atrium_api::agent::{store::MemorySessionStore, AtpAgent};
 use atrium_api::app::bsky::embed::external;
 use atrium_api::app::bsky::feed::post::{Record, RecordEmbedEnum};
+use atrium_api::app::bsky::richtext::facet;
 use atrium_api::com::atproto::repo::create_record::{Input, Output};
 use atrium_api::types::string::{Datetime, Did};
 use atrium_xrpc_client::reqwest::ReqwestClient;
@@ -30,16 +31,17 @@ impl BskyAgent {
         entry: &Entry,
         html: &HTML,
     ) -> Result<Output, Box<dyn std::error::Error>> {
+        let (text, facets) = text_and_facets(entry);
         let record = Record {
             created_at: Datetime::now(),
             embed: Some(self.embed(entry, html).await?),
             entities: None,
-            facets: None,
+            facets,
             labels: None,
             langs: Some(vec!["ja".parse().expect("invalid language")]),
             reply: None,
             tags: None,
-            text: text(entry),
+            text,
         };
         Ok(self
             .agent
@@ -95,7 +97,8 @@ impl BskyAgent {
     }
 }
 
-fn text(entry: &Entry) -> String {
+fn text_and_facets(entry: &Entry) -> (String, Option<Vec<facet::Main>>) {
+    let mut facets = Vec::new();
     let mut ret = if let Some(description) = &entry.description {
         format!("{description} / {}", entry.title)
     } else {
@@ -103,12 +106,21 @@ fn text(entry: &Entry) -> String {
     };
     if !entry.tags.is_empty() {
         ret += "\n";
-        ret += &entry
-            .tags
-            .iter()
-            .map(|tag| format!("#{tag}"))
-            .collect::<Vec<_>>()
-            .join(" ");
+        for (i, tag) in entry.tags.iter().enumerate() {
+            facets.push(facet::Main {
+                features: vec![facet::MainFeaturesItem::Tag(Box::new(facet::Tag {
+                    tag: tag.clone(),
+                }))],
+                index: facet::ByteSlice {
+                    byte_end: ret.len() + tag.len() + 1,
+                    byte_start: ret.len(),
+                },
+            });
+            ret += &format!("#{tag}");
+            if i < entry.tags.len() - 1 {
+                ret.push(' ');
+            }
+        }
     }
-    ret
+    (ret, Some(facets))
 }
