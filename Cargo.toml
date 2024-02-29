@@ -12,8 +12,8 @@ wasm-opt = false
 crate-type = ["cdylib"]
 
 [dependencies]
-atrium-api = { git = "https://github.com/sugyan/atrium.git", branch = "feature/wasm-support" }
-atrium-xrpc-client = { git = "https://github.com/sugyan/atrium.git", branch = "feature/wasm-support", default-features = false }
+atrium-api = "0.18.0"
+atrium-xrpc-client = "0.4.0"
 worker = "0.0.18"
 getrandom = { version = "0.2", features = ["js"] }
 reqwest = { version = "0.11.24", default-features = false }
