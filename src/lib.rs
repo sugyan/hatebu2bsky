@@ -12,9 +12,9 @@ async fn main(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
 }
 
 async fn run(env: Env) -> Result<(), Box<dyn std::error::Error>> {
-    let hatebu_username = env
-        .var("HATEBU_USERNAME")
-        .expect("HATEBU_USERNAME is not set")
+    let hatena_id = env
+        .var("HATENA_ID")
+        .expect("HATENA_ID is not set")
         .to_string();
     let identifier = env
         .var("BSKY_IDENTIFIER")
@@ -28,7 +28,7 @@ async fn run(env: Env) -> Result<(), Box<dyn std::error::Error>> {
     let kv = env.kv(KV_NAMESPACE).expect("failed to get kv");
     // collect new entries from hatena bookmark
     let mut entries = Vec::new();
-    for entry in hatebu::list_bookmarks(&hatebu_username).await?.iter().rev() {
+    for entry in hatebu::list_bookmarks(&hatena_id).await?.iter().rev() {
         console_log!("{} {}", entry.url, entry.title);
         if let Some(text) = kv.get(&entry.url).text().await? {
             console_log!(" -> already exists: {text}");

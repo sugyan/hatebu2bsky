@@ -10,8 +10,8 @@ pub(crate) struct Entry {
     pub tags: Vec<String>,
 }
 
-pub async fn list_bookmarks(username: &str) -> Result<Vec<Entry>, Box<dyn Error>> {
-    let url = format!("https://b.hatena.ne.jp/{username}/bookmark.rss");
+pub async fn list_bookmarks(hatena_id: &str) -> Result<Vec<Entry>, Box<dyn Error>> {
+    let url = format!("https://b.hatena.ne.jp/{hatena_id}/bookmark.rss");
     let mut entries = Vec::new();
     for item in get_items(url).await? {
         entries.push(Entry {
