@@ -7,6 +7,7 @@ use atrium_api::app::bsky::richtext::facet;
 use atrium_api::com::atproto::repo::create_record::{Input, Output};
 use atrium_api::types::string::{Datetime, Did};
 use webpage::HTML;
+use worker::{Fetch, Url};
 
 pub(crate) struct BskyAgent {
     agent: AtpAgent<MemorySessionStore, FetchClient>,
@@ -62,7 +63,15 @@ impl BskyAgent {
         html: &HTML,
     ) -> Result<RecordEmbedEnum, Box<dyn std::error::Error>> {
         let thumb = if let Some(object) = html.opengraph.images.first() {
-            let data = reqwest::get(&object.url).await?.bytes().await?.to_vec();
+            let url = match object.url.parse() {
+                Err(url::ParseError::RelativeUrlWithoutBase) => {
+                    let mut base = entry.url.parse::<Url>()?;
+                    base.set_path("/");
+                    base.join(&object.url)
+                }
+                other => other,
+            }?;
+            let data = Fetch::Url(url).send().await?.bytes().await?;
             let uploaded = self.agent.api.com.atproto.repo.upload_blob(data).await?;
             Some(uploaded.blob)
         } else {

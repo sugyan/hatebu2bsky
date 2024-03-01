@@ -2,7 +2,7 @@ mod bsky;
 mod client;
 mod hatebu;
 
-use worker::{console_error, console_log, event};
+use worker::{console_error, console_log, event, Fetch};
 use worker::{Env, ScheduleContext, ScheduledEvent};
 
 const KV_NAMESPACE: &str = "kv";
@@ -56,7 +56,7 @@ async fn post2bsky(
     agent: &bsky::BskyAgent,
     entry: &hatebu::Entry,
 ) -> Result<atrium_api::com::atproto::repo::create_record::Output, Box<dyn std::error::Error>> {
-    let response = reqwest::get(&entry.url).await?;
-    let html = webpage::HTML::from_string(response.text().await?, None)?;
+    let text = Fetch::Url(entry.url.parse()?).send().await?.text().await?;
+    let html = webpage::HTML::from_string(text, None)?;
     agent.create_post(entry, &html).await
 }

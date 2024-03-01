@@ -17,8 +17,8 @@ async-trait = "0.1.77"
 atrium-api = "0.18.0"
 http = "0.2.9"
 js-sys = "=0.3.63"
-reqwest = { version = "0.11.24", default-features = false }
 rss = { version = "2.0.7", default-features = false }
+url = "2.5.0"
 wasm-bindgen = "=0.2.86"
 webpage = { version = "2.0.0", default-features = false }
 
