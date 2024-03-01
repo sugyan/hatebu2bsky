@@ -1,10 +1,24 @@
 use async_trait::async_trait;
 use atrium_api::xrpc::{HttpClient, XrpcClient};
 use js_sys::Uint8Array;
+use std::sync::{Arc, RwLock};
 use wasm_bindgen::JsValue;
 use worker::{Fetch, Headers, Method, RequestInit};
 
-pub(crate) struct FetchClient;
+pub(crate) struct ClientInfo {
+    pub(crate) access_jwt: Option<String>,
+    pub(crate) base_uri: String,
+}
+
+pub(crate) struct FetchClient {
+    info: Arc<RwLock<ClientInfo>>,
+}
+
+impl FetchClient {
+    pub fn new(info: Arc<RwLock<ClientInfo>>) -> Self {
+        Self { info }
+    }
+}
 
 #[async_trait(?Send)]
 impl HttpClient for FetchClient {
@@ -40,8 +54,19 @@ impl HttpClient for FetchClient {
     }
 }
 
+#[async_trait(?Send)]
 impl XrpcClient for FetchClient {
+    async fn auth(&self, _: bool) -> Option<String> {
+        self.info
+            .read()
+            .map(|info| info.access_jwt.clone())
+            .ok()
+            .flatten()
+    }
     fn base_uri(&self) -> String {
-        "https://bsky.social".into()
+        self.info
+            .read()
+            .map(|info| info.base_uri.clone())
+            .unwrap_or_default()
     }
 }

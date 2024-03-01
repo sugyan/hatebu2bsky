@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 [dependencies]
 worker = "0.0.18"
 async-trait = "0.1.77"
-atrium-api = "0.18.0"
+atrium-api = { version = "0.18.0", default-features = false }
 http = "0.2.9"
 js-sys = "=0.3.63"
 rss = { version = "2.0.7", default-features = false }

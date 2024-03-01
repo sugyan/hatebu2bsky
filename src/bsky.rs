@@ -1,16 +1,19 @@
-use crate::client::FetchClient;
+use crate::client::{ClientInfo, FetchClient};
 use crate::hatebu::Entry;
-use atrium_api::agent::{store::MemorySessionStore, AtpAgent};
 use atrium_api::app::bsky::embed::external;
 use atrium_api::app::bsky::feed::post::{Record, RecordEmbedEnum};
 use atrium_api::app::bsky::richtext::facet;
+use atrium_api::client::AtpServiceClient;
 use atrium_api::com::atproto::repo::create_record::{Input, Output};
+use atrium_api::did_doc::DidDocument;
 use atrium_api::types::string::{Datetime, Did};
+use http::Uri;
+use std::sync::{Arc, RwLock};
 use webpage::HTML;
 use worker::{Fetch, Url};
 
 pub(crate) struct BskyAgent {
-    agent: AtpAgent<MemorySessionStore, FetchClient>,
+    client: AtpServiceClient<FetchClient>,
     did: Did,
 }
 
@@ -19,10 +22,31 @@ impl BskyAgent {
         identifier: impl AsRef<str>,
         password: impl AsRef<str>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let agent = AtpAgent::new(FetchClient, MemorySessionStore::default());
-        let session = agent.login(identifier, password).await?;
-        let did = session.did;
-        Ok(Self { agent, did })
+        let info = Arc::new(RwLock::new(ClientInfo {
+            access_jwt: None,
+            base_uri: "https://bsky.social".into(),
+        }));
+        let client = AtpServiceClient::new(FetchClient::new(info.clone()));
+        let session = client
+            .service
+            .com
+            .atproto
+            .server
+            .create_session(atrium_api::com::atproto::server::create_session::Input {
+                identifier: identifier.as_ref().to_string(),
+                password: password.as_ref().to_string(),
+            })
+            .await?;
+        info.write().map_err(|e| e.to_string())?.access_jwt = Some(session.access_jwt);
+        if let Some(did_doc) = session.did_doc {
+            if let Some(pds_endpoint) = get_pds_endpoint(&did_doc) {
+                info.write().map_err(|e| e.to_string())?.base_uri = pds_endpoint;
+            }
+        };
+        Ok(Self {
+            client,
+            did: session.did,
+        })
     }
     pub async fn create_post(
         &self,
@@ -42,8 +66,8 @@ impl BskyAgent {
             text,
         };
         Ok(self
-            .agent
-            .api
+            .client
+            .service
             .com
             .atproto
             .repo
@@ -72,7 +96,14 @@ impl BskyAgent {
                 other => other,
             }?;
             let data = Fetch::Url(url).send().await?.bytes().await?;
-            let uploaded = self.agent.api.com.atproto.repo.upload_blob(data).await?;
+            let uploaded = self
+                .client
+                .service
+                .com
+                .atproto
+                .repo
+                .upload_blob(data)
+                .await?;
             Some(uploaded.blob)
         } else {
             None
@@ -100,6 +131,34 @@ impl BskyAgent {
             },
         )))
     }
+}
+
+fn get_pds_endpoint(did_doc: &DidDocument) -> Option<String> {
+    get_service_endpoint(did_doc, ("#atproto_pds", "AtprotoPersonalDataServer"))
+}
+
+fn get_service_endpoint(did_doc: &DidDocument, (id, r#type): (&str, &str)) -> Option<String> {
+    let full_id = did_doc.id.clone() + id;
+    if let Some(services) = &did_doc.service {
+        let service = services
+            .iter()
+            .find(|service| service.id == id || service.id == full_id)?;
+        if service.r#type == r#type && validate_url(&service.service_endpoint) {
+            return Some(service.service_endpoint.clone());
+        }
+    }
+    None
+}
+
+fn validate_url(url: &str) -> bool {
+    if let Ok(uri) = url.parse::<Uri>() {
+        if let Some(scheme) = uri.scheme() {
+            if (scheme == "https" || scheme == "http") && uri.host().is_some() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn text_and_facets(entry: &Entry) -> (String, Option<Vec<facet::Main>>) {
