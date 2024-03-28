@@ -35,7 +35,14 @@ impl HttpClient for FetchClient {
                 u8array.copy_from(request.body());
                 Some(JsValue::from(u8array))
             },
-            headers: Headers::from(request.headers().clone()),
+            headers: Headers::from_iter(request.headers().iter().map(|(k, v)| {
+                (
+                    k.to_string(),
+                    v.to_str()
+                        .expect("failed to convert header value")
+                        .to_string(),
+                )
+            })),
             method: Method::from(request.method().to_string()),
             ..Default::default()
         };

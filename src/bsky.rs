@@ -1,12 +1,14 @@
 use crate::client::{ClientInfo, FetchClient};
 use crate::hatebu::Entry;
 use atrium_api::app::bsky::embed::external;
-use atrium_api::app::bsky::feed::post::{Record, RecordEmbedEnum};
+use atrium_api::app::bsky::feed::post::RecordEmbedRefs;
 use atrium_api::app::bsky::richtext::facet;
 use atrium_api::client::AtpServiceClient;
 use atrium_api::com::atproto::repo::create_record::{Input, Output};
 use atrium_api::did_doc::DidDocument;
+use atrium_api::records::{KnownRecord, Record};
 use atrium_api::types::string::{Datetime, Did};
+use atrium_api::types::Union;
 use http::Uri;
 use std::sync::{Arc, RwLock};
 use webpage::HTML;
@@ -54,7 +56,7 @@ impl BskyAgent {
         html: &HTML,
     ) -> Result<Output, Box<dyn std::error::Error>> {
         let (text, facets) = text_and_facets(entry);
-        let record = Record {
+        let record = atrium_api::app::bsky::feed::post::Record {
             created_at: Datetime::now(),
             embed: Some(self.embed(entry, html).await?),
             entities: None,
@@ -73,7 +75,7 @@ impl BskyAgent {
             .repo
             .create_record(Input {
                 collection: "app.bsky.feed.post".parse().expect("invalid collection"),
-                record: atrium_api::records::Record::AppBskyFeedPost(Box::new(record)),
+                record: Record::Known(KnownRecord::AppBskyFeedPost(Box::new(record))),
                 repo: self.did.clone().into(),
                 rkey: None,
                 swap_commit: None,
@@ -85,7 +87,7 @@ impl BskyAgent {
         &self,
         entry: &Entry,
         html: &HTML,
-    ) -> Result<RecordEmbedEnum, Box<dyn std::error::Error>> {
+    ) -> Result<Union<RecordEmbedRefs>, Box<dyn std::error::Error>> {
         let thumb = if let Some(object) = html.opengraph.images.first() {
             let url = match object.url.parse() {
                 Err(url::ParseError::RelativeUrlWithoutBase) => {
@@ -108,8 +110,8 @@ impl BskyAgent {
         } else {
             None
         };
-        Ok(RecordEmbedEnum::AppBskyEmbedExternalMain(Box::new(
-            external::Main {
+        Ok(Union::Refs(RecordEmbedRefs::AppBskyEmbedExternalMain(
+            Box::new(external::Main {
                 external: external::External {
                     description: html
                         .opengraph
@@ -128,7 +130,7 @@ impl BskyAgent {
                         .unwrap_or_default(),
                     uri: entry.url.clone(),
                 },
-            },
+            }),
         )))
     }
 }
@@ -172,9 +174,9 @@ fn text_and_facets(entry: &Entry) -> (String, Option<Vec<facet::Main>>) {
         ret += "\n";
         for (i, tag) in entry.tags.iter().enumerate() {
             facets.push(facet::Main {
-                features: vec![facet::MainFeaturesItem::Tag(Box::new(facet::Tag {
-                    tag: tag.clone(),
-                }))],
+                features: vec![Union::Refs(facet::MainFeaturesItem::Tag(Box::new(
+                    facet::Tag { tag: tag.clone() },
+                )))],
                 index: facet::ByteSlice {
                     byte_end: ret.len() + tag.len() + 1,
                     byte_start: ret.len(),

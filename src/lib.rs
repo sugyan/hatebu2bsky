@@ -2,8 +2,9 @@ mod bsky;
 mod client;
 mod hatebu;
 
+use worker::Env;
 use worker::{console_error, console_log, event, Fetch};
-use worker::{Env, ScheduleContext, ScheduledEvent};
+use worker::{ScheduleContext, ScheduledEvent};
 
 const KV_NAMESPACE: &str = "kv";
 
