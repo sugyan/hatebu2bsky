@@ -12,17 +12,17 @@ wasm-opt = false
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = "0.0.23"
+worker = "0.3"
 async-trait = "0.1.77"
-atrium-api = { version = "0.20.0", default-features = false }
+atrium-api = { version = "0.22", default-features = false, features = ["bluesky"] }
 encoding_rs = "0.8.34"
-http = "0.2.9"
+html5ever = "0.27.0"
+http = { version = "1.1.0", default-features = false }
 js-sys = "^0.3.66"
+markup5ever_rcdom = "0.3.0"
 mime = "0.3.17"
-getrandom = { version = "0.2", features = ["js"] }
 rss = { version = "2.0.7", default-features = false }
-scraper = "0.19.0"
-url = "2.5.0"
+url = "^2.4.0"
 wasm-bindgen = "^0.2.91"
 webpage = { version = "2.0.0", default-features = false }
 
@@ -30,3 +30,4 @@ webpage = { version = "2.0.0", default-features = false }
 lto = true
 strip = true
 codegen-units = 1
+opt-level = "s"

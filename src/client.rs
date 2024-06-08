@@ -63,7 +63,7 @@ impl HttpClient for FetchClient {
 
 #[async_trait(?Send)]
 impl XrpcClient for FetchClient {
-    async fn auth(&self, _: bool) -> Option<String> {
+    async fn authentication_token(&self, _: bool) -> Option<String> {
         self.info
             .read()
             .map(|info| info.access_jwt.clone())

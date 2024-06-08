@@ -35,6 +35,7 @@ impl BskyAgent {
             .atproto
             .server
             .create_session(atrium_api::com::atproto::server::create_session::Input {
+                auth_factor_token: None,
                 identifier: identifier.as_ref().to_string(),
                 password: password.as_ref().to_string(),
             })

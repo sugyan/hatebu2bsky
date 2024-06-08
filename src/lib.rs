@@ -3,8 +3,11 @@ mod client;
 mod hatebu;
 
 use encoding_rs::Encoding;
+use html5ever::parse_document;
+use html5ever::tendril::TendrilSink;
+use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use mime::Mime;
-use scraper::{Html, Selector};
+use std::io::Cursor;
 use webpage::HTML;
 use worker::Env;
 use worker::{console_error, console_log, event, Fetch};
@@ -72,13 +75,16 @@ async fn get_webpage(url: &str) -> Result<HTML, Box<dyn std::error::Error>> {
         .get(http::header::CONTENT_TYPE.as_str())?
         .and_then(|value| value.parse::<Mime>().ok());
     let bytes = res.bytes().await?;
+    let dom = parse_document(RcDom::default(), Default::default())
+        .from_utf8()
+        .read_from(&mut Cursor::new(&bytes))?;
     let s = if let Some(encoding) = content_type
         .as_ref()
         .and_then(|mime| {
             mime.get_param("charset")
                 .map(|charset| charset.as_str().to_string())
         })
-        .or_else(|| extract_charset(bytes.as_ref()))
+        .or_else(|| extract_charset(&dom.document))
         .and_then(|charset| Encoding::for_label(charset.as_bytes()))
     {
         encoding.decode(bytes.as_ref()).0
@@ -88,19 +94,39 @@ async fn get_webpage(url: &str) -> Result<HTML, Box<dyn std::error::Error>> {
     Ok(HTML::from_string(s.to_string(), Some(url.into()))?)
 }
 
-fn extract_charset(bytes: &[u8]) -> Option<String> {
-    let html = Html::parse_document(&String::from_utf8_lossy(bytes));
-    let selector = Selector::parse("meta[charset], meta[http-equiv=content-type]").unwrap();
-    for element in html.select(&selector) {
-        if let Some(charset) = element.value().attr("charset") {
-            return Some(charset.to_string());
-        }
-        if let Some(content) = element.value().attr("content") {
-            let content = content.to_lowercase();
-            if let Some(index) = content.find("charset=") {
-                let charset = content[index + 8..].trim();
-                return Some(charset.to_string());
+fn extract_charset(handle: &Handle) -> Option<String> {
+    let node = handle;
+    if let NodeData::Element {
+        ref name,
+        ref attrs,
+        ..
+    } = node.data
+    {
+        if name.local.as_ref() == "meta" {
+            for attr in attrs.borrow().iter() {
+                if attr.name.local.as_ref() == "charset" {
+                    return Some(attr.value.to_string());
+                }
             }
+            for attr in attrs.borrow().iter() {
+                if attr.name.local.as_ref() == "http-equiv"
+                    && attr.value.to_ascii_lowercase() == "content-type"
+                {
+                    for attr in attrs.borrow().iter() {
+                        if attr.name.local.as_ref() == "content" {
+                            let content = attr.value.to_string();
+                            if let Some(pos) = content.to_ascii_lowercase().find("charset=") {
+                                return Some(content[pos + 8..].to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for child in node.children.borrow().iter() {
+        if let Some(charset) = extract_charset(child) {
+            return Some(charset);
         }
     }
     None
