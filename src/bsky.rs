@@ -1,4 +1,5 @@
 use crate::client::{ClientInfo, FetchClient};
+use crate::fetch;
 use crate::hatebu::Entry;
 use atrium_api::app::bsky::embed::external;
 use atrium_api::app::bsky::feed::post::RecordEmbedRefs;
@@ -12,7 +13,7 @@ use atrium_api::types::Union;
 use http::Uri;
 use std::sync::{Arc, RwLock};
 use webpage::HTML;
-use worker::{Fetch, Url};
+use worker::Url;
 
 pub(crate) struct BskyAgent {
     client: AtpServiceClient<FetchClient>,
@@ -98,7 +99,7 @@ impl BskyAgent {
                 }
                 other => other,
             }?;
-            let data = Fetch::Url(url).send().await?.bytes().await?;
+            let data = fetch(url.as_str()).await?.bytes().await?;
             let uploaded = self
                 .client
                 .service

@@ -9,8 +9,8 @@ use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use mime::Mime;
 use std::io::Cursor;
 use webpage::HTML;
-use worker::Env;
-use worker::{console_error, console_log, event, Fetch};
+use worker::{console_error, console_log, event, Fetch, Method, Response};
+use worker::{Env, Request};
 use worker::{ScheduleContext, ScheduledEvent};
 
 const KV_NAMESPACE: &str = "kv";
@@ -69,7 +69,7 @@ async fn post2bsky(
 }
 
 async fn get_webpage(url: &str) -> Result<HTML, Box<dyn std::error::Error>> {
-    let mut res = Fetch::Url(url.parse()?).send().await?;
+    let mut res = fetch(url).await?;
     let content_type = res
         .headers()
         .get(http::header::CONTENT_TYPE.as_str())?
@@ -130,4 +130,10 @@ fn extract_charset(handle: &Handle) -> Option<String> {
         }
     }
     None
+}
+
+pub async fn fetch(uri: &str) -> Result<Response, Box<dyn std::error::Error>> {
+    let mut req = Request::new(uri, Method::Get)?;
+    req.headers_mut()?.set("User-Agent", "Cloudflare Workers")?;
+    Ok(Fetch::Request(req).send().await?)
 }
